@@ -2,109 +2,21 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from darknet19 import DarkNet19
+from rpn import RPN
+
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 
-class YOLOv1(nn.Module):
-    def __init__(self, n_class, n_bbox):
-        super(YOLOv1, self).__init__()
-        self.n_class = n_class
-        self.n_bbox = n_bbox
-        self.train = True
-        self.pretrain = False
-        self.conv1_train = nn.Conv2d(3, 64, 7, 1, 3)
-        self.conv1_detect = nn.Conv2d(3, 64, 7, 2, 3)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.conv2 = nn.Conv2d(64, 192, 3, 1, 1)
-        self.bn2 = nn.BatchNorm2d(192)
-        self.conv3_1 = nn.Conv2d(192, 128, 1, 1, 0)
-        self.conv3_2 = nn.Conv2d(128, 256, 3, 1, 1)
-        self.conv3_3 = nn.Conv2d(256, 256, 1, 1, 0)
-        self.conv3_4 = nn.Conv2d(256, 512, 3, 1, 1)
-        self.bn3 = nn.BatchNorm2d(512)
-        self.conv4_1 = nn.Conv2d(512, 256, 1, 1, 0)
-        self.conv4_2 = nn.Conv2d(256, 512, 3, 1, 1)
-        self.conv4_3 = nn.Conv2d(512, 512, 1, 1, 0)
-        self.conv4_4 = nn.Conv2d(512, 1024, 3, 1, 1)
-        self.bn4 = nn.BatchNorm2d(1024)
-        self.conv5_1 = nn.Conv2d(1024, 512, 1, 1, 0)
-        self.conv5_2 = nn.Conv2d(512, 1024, 3, 1, 1)
-        self.conv5_3 = nn.Conv2d(1024, 1024, 3, 1, 1)
-        self.conv5_4 = nn.Conv2d(1024, 1024, 3, 2, 1)
-        self.bn5 = nn.BatchNorm2d(1024)
-        self.conv6 = nn.Conv2d(1024, 1024, 3, 1, 1)
-        self.bn6 = nn.BatchNorm2d(1024)
-        self.maxpool = nn.MaxPool2d(2, 2)
-        self.avgpool = nn.AvgPool2d(2, 2)
-        self.leakyRelu = nn.LeakyReLU(.1)
-        self.relu = nn.ReLU(True)
-        self.softmax = nn.Softmax(dim=3)
-        self.fc_pretrain = nn.Linear(7 * 7 * 1024, n_class)
-        self.fc1 = nn.Linear(7 * 7 * 1024, 4096)
-        self.fc2 = nn.Linear(4096, 7 * 7 * (5 * self.n_bbox + self.n_class))
+class YOLOv2(nn.Module):
+    def __init__(self):
+        super(YOLOv2, self).__init__()
+        self.darknet = DarkNet19()
+        self.rpn = RPN()
 
     def forward(self, x):
-        x = self.conv1_train(x) if self.train else self.conv1_detect(x)
-        x = self.bn1(x)
-        x = self.leakyRelu(x)
-        x = self.maxpool(x)
+        x = self.darknet(x)
 
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.leakyRelu(x)
-        x = self.maxpool(x)
-
-        x = self.conv3_1(x)
-        x = self.conv3_2(x)
-        x = self.conv3_3(x)
-        x = self.conv3_4(x)
-        x = self.bn3(x)
-        x = self.leakyRelu(x)
-        x = self.maxpool(x)
-
-        for _ in range(4):
-            x = self.conv4_1(x)
-            x = self.conv4_2(x)
-        x = self.conv4_3(x)
-        x = self.conv4_4(x)
-        x = self.bn4(x)
-        x = self.leakyRelu(x)
-        x = self.maxpool(x)
-
-        for _ in range(2):
-            x = self.conv5_1(x)
-            x = self.conv5_2(x)
-
-        if self.pretrain:
-            x = self.bn5(x)
-            x = self.avgpool(x)
-            x = x.view(x.size(0), -1)
-            x = self.fc_pretrain(x)
-        else:
-            x = self.conv5_3(x)
-            x = self.conv5_4(x)
-            x = self.bn5(x)
-            x = self.leakyRelu(x)
-
-            for _ in range(2):
-                x = self.conv6(x)
-            x = self.bn6(x)
-            x = self.leakyRelu(x)
-
-            x = x.contiguous().view(x.size(0), -1)
-            x = self.fc1(x)
-            x = self.leakyRelu(x)
-
-            x = self.fc2(x)
-            # x = self.relu(x)
-            x = x.contiguous().view(x.size(0), 7, 7, -1)
-
-            for i in range(self.n_bbox):
-                x[:, :, :, 5 * i:5 * i + 4] = self.relu(x[:, :, :, 5 * i:5 * i + 4])
-                x[:, :, :, 5 * i + 4] = self.leakyRelu(x[:, :, :, 5 * i + 4])
-            x[:, :, :, 5 * self.n_bbox:] = self.softmax(x[:, :, :, 5 * self.n_bbox:])
-
-        return x
 
 
 def target_generator(bbox, class_, n_bbox, n_class, in_size, out_size):
