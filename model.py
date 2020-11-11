@@ -12,11 +12,13 @@ class YOLOv2(nn.Module):
     def __init__(self):
         super(YOLOv2, self).__init__()
         self.darknet = DarkNet19()
-        self.rpn = RPN()
+        self.rpn = RPN(3072)
 
     def forward(self, x):
         x = self.darknet(x)
+        x = self.rpn(x)
 
+        return x
 
 
 def target_generator(bbox, class_, n_bbox, n_class, in_size, out_size):
@@ -47,9 +49,8 @@ def target_generator(bbox, class_, n_bbox, n_class, in_size, out_size):
 
 
 if __name__ == '__main__':
-    import torch
     from torchsummary import summary
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model = YOLOv1(20, 1).to(device)
-    model.pretrain = False
-    summary(model, (3, 224, 224))
+    model = YOLOv2().to(device)
+    summary(model, (3, 416, 416))
+
+

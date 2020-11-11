@@ -1,7 +1,8 @@
 import torch
+import numpy as np
 
+a = np.array([[1, 2, 3]])
+b = np.array([[11, 22, 33]])
 
-if __name__ == '__main__':
-    a = torch.ones((3, 3))
-    b = a.mean(dim=(0, 2))
-    print(b)
+c = np.concatenate([a, b], axis=0)
+print(c)
