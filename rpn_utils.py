@@ -63,5 +63,13 @@ def k_means_cluster_anchor_box(k, bbox):
     return centroids, clusters
 
 
+def get_anchor_box_size(bbox):
+    anchors = []
+    for b in bbox:
+        h, w = b[3] - b[1], b[2] - b[1]
+        anchors.append([h, w])
 
+    anchors = np.array(anchors)
+
+    return anchors
 

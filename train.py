@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from datasets.voc_dataset import VOCDataset
 from model import YOLOv2
-from rpn_utils import k_means_cluster_anchor_box
+from rpn_utils import k_means_cluster_anchor_box, get_anchor_box_size
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -28,8 +28,8 @@ if __name__ == '__main__':
         break
     bbox = bbox.numpy()
     centroids, clusters = k_means_cluster_anchor_box(5, bbox)
-    print(centroids)
-    print(clusters.shape)
+    anchors = get_anchor_box_size(centroids)
+    print(anchors)
 
     # model = YOLOv2().to(device)
 
